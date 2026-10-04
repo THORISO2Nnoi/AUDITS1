@@ -1,0 +1,25 @@
+{
+  "name": "audit-log-console",
+  "version": "1.0.0",
+  "description": "Audit Log & Compliance Administration Console with Role-Based Access Control (RBAC)",
+  "main": "js/dashboard.js",
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('js', { recursive: true, force: true })\"",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "start": "npm run build && npx -y serve .",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "audit",
+    "compliance",
+    "rbac",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,15 +1,30 @@
-# Audit Log Console
+# Audit Log Console (TypeScript)
 
-Audit Log & Compliance Administration Console with **Role-Based Access Control (RBAC)**.
+Audit Log & Compliance Administration Console with **Role-Based Access Control (RBAC)**, written in **TypeScript**.
 
 ## 📂 Structure
 
+- `src/` — **TypeScript Source Code**
+  - `types.ts` — Data contracts, interfaces, and DOM window global type declarations
+  - `login.ts` — Login authentication controller & RBAC enforcement
+  - `dashboard.ts` — Main audit log console controller & view renderer
+  - `exporter.ts` — Export logic (CSV, Excel, PDF generation & toast notifications)
+  - `charts.ts` — Pure CSS chart rendering logic
+  - `filters.ts` — Activity log filtering logic
+- `js/` — Compiled JavaScript output (generated via `npm run build`)
 - `index.html` — Login portal (Role-aware Admin vs Broker authentication)
 - `dashboard.html` — Audit console (8 views for authorized Admins)
 - `css/` — Stylesheets (login styling, dashboard layout, charts)
-- `js/` — Logic (RBAC login, dashboard, charts, filters)
 - `data/` — Sample JSON data (`admins.json`, `brokers.json`, `activity.json`, etc.)
-- `docs/` — Specs (`AUTH.md`, `AUDIT-SCHEMA.md`)
+- `docs/` — Specifications & documentation (`AUTH.md`, `AUDIT-SCHEMA.md`)
+- `tsconfig.json` — TypeScript compiler configuration
+- `package.json` — NPM project configuration & build scripts
+
+## 🛠 TypeScript Build Scripts
+
+- **Compile TypeScript**: `npm run build`
+- **Watch Mode**: `npm run watch`
+- **Type Checking**: `npm run type-check`
 
 ## 🔑 Demo Logins
 

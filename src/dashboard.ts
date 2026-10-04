@@ -2,7 +2,7 @@
    Dashboard — loads JSON data, renders all views
    ========================================================= */
 
-const state = {
+const state: AppState = {
   brokers: {},
   activity: [],
   logins: [],
@@ -17,28 +17,28 @@ const state = {
 };
 
 /* ---------- Data loading ---------- */
-async function loadJSON(path){
+async function loadJSON<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(path);
     if (!res.ok) throw new Error(path);
-    return await res.json();
+    return await res.json() as T;
   } catch (err) {
     console.warn("Could not load", path);
     return null;
   }
 }
 
-async function loadAllData(){
+async function loadAllData(): Promise<void> {
   const [brokers, activity, logins, downloads, security, brokerSummary, toolUsage, exports] =
     await Promise.all([
-      loadJSON("data/brokers.json"),
-      loadJSON("data/activity.json"),
-      loadJSON("data/logins.json"),
-      loadJSON("data/downloads.json"),
-      loadJSON("data/security.json"),
-      loadJSON("data/broker-summary.json"),
-      loadJSON("data/tool-usage.json"),
-      loadJSON("data/exports.json")
+      loadJSON<any>("data/brokers.json"),
+      loadJSON<ActivityRecord[]>("data/activity.json"),
+      loadJSON<LoginRecord[]>("data/logins.json"),
+      loadJSON<DownloadRecord[]>("data/downloads.json"),
+      loadJSON<SecurityRecord[]>("data/security.json"),
+      loadJSON<BrokerSummaryRecord[]>("data/broker-summary.json"),
+      loadJSON<ToolUsageRecord[]>("data/tool-usage.json"),
+      loadJSON<ExportRecord[]>("data/exports.json")
     ]);
 
   state.brokers       = brokers       || {};
@@ -51,7 +51,8 @@ async function loadAllData(){
   state.exports       = exports       || [];
   state.filteredActivity = [...state.activity];
 
-  state.schedules = JSON.parse(localStorage.getItem("audit_schedules") || "[]");
+  const savedSchedules = localStorage.getItem("audit_schedules");
+  state.schedules = JSON.parse(savedSchedules || "[]");
   if (!state.schedules.length) {
     state.schedules = [
       { id: 1, freq: "Daily", email: "compliance@company.com", created: "2025-01-30 08:00:00", lastSent: "Today 08:00 AM" }
@@ -61,28 +62,31 @@ async function loadAllData(){
 }
 
 /* ---------- Helpers ---------- */
-function brokerName(ab) {
+function brokerName(ab: string): string {
   return (state.brokers[ab] && state.brokers[ab].name) || ab;
 }
 
-function badgeClass(action){
-  const map = {
+function badgeClass(action: string): string {
+  const map: Record<string, string> = {
     Login: "login", View: "view", Download: "download",
     Generate: "generate", "Failed Login": "failed"
   };
   return map[action] || "view";
 }
 
-function sevClass(s){
+function sevClass(s: string): string {
   return (s || "").toLowerCase();
 }
 
 /* ---------- Renderers ---------- */
-function renderActivity(rows = state.filteredActivity){
+function renderActivity(rows: ActivityRecord[] = state.filteredActivity): void {
   const body = document.getElementById("tbl-activity");
+  const rowInfo = document.getElementById("rowInfoActivity");
+  if (!body) return;
+
   if (!rows.length) {
     body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:#9ca3af;">No records match the filters.</td></tr>`;
-    document.getElementById("rowInfoActivity").textContent = "0 entries";
+    if (rowInfo) rowInfo.textContent = "0 entries";
     return;
   }
   body.innerHTML = rows.map(r => `
@@ -96,12 +100,15 @@ function renderActivity(rows = state.filteredActivity){
       <td>${r.details}</td>
       <td class="${r.status === 'Success' ? 'status-ok' : 'status-err'}">${r.status}</td>
     </tr>`).join("");
-  document.getElementById("rowInfoActivity").textContent =
-    `Showing 1–${rows.length} of ${rows.length} entries`;
+  if (rowInfo) {
+    rowInfo.textContent = `Showing 1–${rows.length} of ${rows.length} entries`;
+  }
 }
 
-function renderLogins(){
-  document.getElementById("tbl-logins").innerHTML = state.logins.map(r => `
+function renderLogins(): void {
+  const body = document.getElementById("tbl-logins");
+  if (!body) return;
+  body.innerHTML = state.logins.map(r => `
     <tr>
       <td>${r.date}</td>
       <td>${r.ab_number}</td>
@@ -114,8 +121,10 @@ function renderLogins(){
     </tr>`).join("");
 }
 
-function renderDownloads(){
-  document.getElementById("tbl-downloads").innerHTML = state.downloads.map(r => `
+function renderDownloads(): void {
+  const body = document.getElementById("tbl-downloads");
+  if (!body) return;
+  body.innerHTML = state.downloads.map(r => `
     <tr>
       <td>${r.timestamp}</td>
       <td>${r.ab_number}</td>
@@ -128,7 +137,7 @@ function renderDownloads(){
     </tr>`).join("");
 }
 
-function updateSecurityKPIs() {
+function updateSecurityKPIs(): void {
   const crit = state.security.filter(s => s.severity === 'Critical' && s.status === 'Open').length;
   const high = state.security.filter(s => s.severity === 'High' && s.status === 'Open').length;
   const med  = state.security.filter(s => s.severity === 'Medium' && s.status === 'Open').length;
@@ -139,14 +148,16 @@ function updateSecurityKPIs() {
   const elMed  = document.getElementById("kpiMedium");
   const elRes  = document.getElementById("kpiResolved");
 
-  if (elCrit) elCrit.textContent = crit;
-  if (elHigh) elHigh.textContent = high;
-  if (elMed)  elMed.textContent  = med;
-  if (elRes)  elRes.textContent  = res;
+  if (elCrit) elCrit.textContent = String(crit);
+  if (elHigh) elHigh.textContent = String(high);
+  if (elMed)  elMed.textContent  = String(med);
+  if (elRes)  elRes.textContent  = String(res);
 }
 
-function renderSecurity(){
-  document.getElementById("tbl-security").innerHTML = state.security.map((r, i) => `
+function renderSecurity(): void {
+  const body = document.getElementById("tbl-security");
+  if (!body) return;
+  body.innerHTML = state.security.map((r, i) => `
     <tr>
       <td>${r.timestamp}</td>
       <td><span class="badge ${sevClass(r.severity)}">${r.severity}</span></td>
@@ -161,43 +172,56 @@ function renderSecurity(){
   updateSecurityKPIs();
 }
 
-window.openSecurityCard = function(index) {
+function openSecurityCard(index: number): void {
   const item = state.security[index];
   if (!item) return;
   state.activeSecIndex = index;
 
-  document.getElementById("secFieldTimestamp").textContent = item.timestamp;
-  document.getElementById("secFieldSeverity").innerHTML = `<span class="badge ${sevClass(item.severity)}">${item.severity}</span>`;
-  document.getElementById("secFieldType").textContent = item.type;
-  document.getElementById("secFieldSource").textContent = item.source;
-  document.getElementById("secFieldIP").textContent = item.ip;
-  document.getElementById("secFieldStatus").innerHTML = `<span class="badge ${item.status === 'Open' ? 'open' : 'resolved'}">${item.status}</span>`;
-  document.getElementById("secFieldDesc").textContent = item.description;
+  const timestampEl = document.getElementById("secFieldTimestamp");
+  const severityEl  = document.getElementById("secFieldSeverity");
+  const typeEl      = document.getElementById("secFieldType");
+  const sourceEl    = document.getElementById("secFieldSource");
+  const ipEl        = document.getElementById("secFieldIP");
+  const statusEl    = document.getElementById("secFieldStatus");
+  const descEl      = document.getElementById("secFieldDesc");
 
-  const btnResolve = document.getElementById("btnToggleResolve");
-  if (item.status === 'Open') {
-    btnResolve.textContent = "Mark as Resolved";
-    btnResolve.className = "btn-resolve";
-  } else {
-    btnResolve.textContent = "Mark as Open";
-    btnResolve.className = "btn-reopen";
+  if (timestampEl) timestampEl.textContent = item.timestamp;
+  if (severityEl)  severityEl.innerHTML = `<span class="badge ${sevClass(item.severity)}">${item.severity}</span>`;
+  if (typeEl)      typeEl.textContent = item.type;
+  if (sourceEl)    sourceEl.textContent = item.source;
+  if (ipEl)        ipEl.textContent = item.ip;
+  if (statusEl)    statusEl.innerHTML = `<span class="badge ${item.status === 'Open' ? 'open' : 'resolved'}">${item.status}</span>`;
+  if (descEl)      descEl.textContent = item.description;
+
+  const btnResolve = document.getElementById("btnToggleResolve") as HTMLButtonElement | null;
+  if (btnResolve) {
+    if (item.status === 'Open') {
+      btnResolve.textContent = "Mark as Resolved";
+      btnResolve.className = "btn-resolve";
+    } else {
+      btnResolve.textContent = "Mark as Open";
+      btnResolve.className = "btn-reopen";
+    }
   }
 
-  document.getElementById("securityModal").classList.add("active");
-};
+  const modal = document.getElementById("securityModal");
+  if (modal) modal.classList.add("active");
+}
 
-function setupSecurityModal() {
+window.openSecurityCard = openSecurityCard;
+
+function setupSecurityModal(): void {
   const modal = document.getElementById("securityModal");
   const closeBtn = document.getElementById("btnCloseSecModal");
   const closeX = document.getElementById("btnCloseSecModalX");
   const resolveBtn = document.getElementById("btnToggleResolve");
 
-  const closeModal = () => modal.classList.remove("active");
+  const closeModal = () => modal?.classList.remove("active");
 
   if (closeBtn) closeBtn.addEventListener("click", closeModal);
   if (closeX) closeX.addEventListener("click", closeModal);
   if (modal) {
-    modal.addEventListener("click", (e) => {
+    modal.addEventListener("click", (e: MouseEvent) => {
       if (e.target === modal) closeModal();
     });
   }
@@ -222,8 +246,9 @@ function setupSecurityModal() {
   }
 }
 
-function renderBroker(rows = state.brokerSummary){
+function renderBroker(rows: BrokerSummaryRecord[] = state.brokerSummary): void {
   const tbody = document.getElementById("tbl-broker");
+  if (!tbody) return;
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#9ca3af;">No brokers match the search.</td></tr>`;
     return;
@@ -240,8 +265,8 @@ function renderBroker(rows = state.brokerSummary){
     </tr>`).join("");
 }
 
-function setupBrokerSearch() {
-  const searchInput = document.getElementById("fBrokerSearch");
+function setupBrokerSearch(): void {
+  const searchInput = document.getElementById("fBrokerSearch") as HTMLInputElement | null;
   const resetBtn = document.getElementById("btnResetBrokerSearch");
 
   if (searchInput) {
@@ -272,8 +297,10 @@ function setupBrokerSearch() {
   }
 }
 
-function renderTools(){
-  document.getElementById("tbl-tools").innerHTML = state.toolUsage.map(r => `
+function renderTools(): void {
+  const body = document.getElementById("tbl-tools");
+  if (!body) return;
+  body.innerHTML = state.toolUsage.map(r => `
     <tr>
       <td>${r.tool}</td>
       <td>${r.brokers}</td>
@@ -283,8 +310,10 @@ function renderTools(){
     </tr>`).join("");
 }
 
-function renderExports(){
-  document.getElementById("tbl-exports").innerHTML = state.exports.map(r => `
+function renderExports(): void {
+  const body = document.getElementById("tbl-exports");
+  if (!body) return;
+  body.innerHTML = state.exports.map(r => `
     <tr>
       <td>${r.timestamp}</td>
       <td>${r.exported_by}</td>
@@ -295,8 +324,8 @@ function renderExports(){
     </tr>`).join("");
 }
 
-function recordExportLog(viewName, format, rowCount) {
-  const entry = {
+function recordExportLog(viewName: string, format: string, rowCount: number): void {
+  const entry: ExportRecord = {
     timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
     exported_by: `${localStorage.getItem("session_name") || "Admin"} (${localStorage.getItem("session_ab") || "ADM001"})`,
     view: viewName,
@@ -308,7 +337,7 @@ function recordExportLog(viewName, format, rowCount) {
   renderExports();
 }
 
-function setupExportButtons() {
+function setupExportButtons(): void {
   // Activity Log Exports
   const btnActCSV = document.getElementById("btnExportActivityCSV");
   const btnActPDF = document.getElementById("btnExportActivityPDF");
@@ -325,7 +354,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Timestamp", "AB Number", "Broker", "IP", "Tool", "Action", "Details", "Status"];
-      if (window.Exporter.csv("Activity Log", headers, data, "Activity_Log.csv")) {
+      if (window.Exporter && window.Exporter.csv("Activity Log", headers, data, "Activity_Log.csv")) {
         recordExportLog("Activity Log", "CSV", data.length);
       }
     });
@@ -344,7 +373,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Timestamp", "AB Number", "Broker", "IP", "Tool", "Action", "Details", "Status"];
-      if (window.Exporter.pdf("Activity Log", headers, data, "Activity_Log.pdf")) {
+      if (window.Exporter && window.Exporter.pdf("Activity Log", headers, data, "Activity_Log.pdf")) {
         recordExportLog("Activity Log", "PDF", data.length);
       }
     });
@@ -366,7 +395,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Date", "AB Number", "Broker", "Login", "Logout", "Duration", "IP", "Status"];
-      if (window.Exporter.csv("Login Activity", headers, data, "Login_Activity.csv")) {
+      if (window.Exporter && window.Exporter.csv("Login Activity", headers, data, "Login_Activity.csv")) {
         recordExportLog("Login Activity", "CSV", data.length);
       }
     });
@@ -384,7 +413,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Date", "AB Number", "Broker", "Login", "Logout", "Duration", "IP", "Status"];
-      if (window.Exporter.pdf("Login Activity", headers, data, "Login_Activity.pdf")) {
+      if (window.Exporter && window.Exporter.pdf("Login Activity", headers, data, "Login_Activity.pdf")) {
         recordExportLog("Login Activity", "PDF", data.length);
       }
     });
@@ -406,7 +435,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Timestamp", "AB Number", "Broker", "Report", "Tool", "Format", "Size", "Status"];
-      if (window.Exporter.csv("Report Downloads", headers, data, "Report_Downloads.csv")) {
+      if (window.Exporter && window.Exporter.csv("Report Downloads", headers, data, "Report_Downloads.csv")) {
         recordExportLog("Report Downloads", "CSV", data.length);
       }
     });
@@ -424,7 +453,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Timestamp", "AB Number", "Broker", "Report", "Tool", "Format", "Size", "Status"];
-      if (window.Exporter.pdf("Report Downloads", headers, data, "Report_Downloads.pdf")) {
+      if (window.Exporter && window.Exporter.pdf("Report Downloads", headers, data, "Report_Downloads.pdf")) {
         recordExportLog("Report Downloads", "PDF", data.length);
       }
     });
@@ -445,7 +474,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Timestamp", "Severity", "Event Type", "Source", "IP", "Description", "Status"];
-      if (window.Exporter.csv("Security Events", headers, data, "Security_Events.csv")) {
+      if (window.Exporter && window.Exporter.csv("Security Events", headers, data, "Security_Events.csv")) {
         recordExportLog("Security Events", "CSV", data.length);
       }
     });
@@ -462,7 +491,7 @@ function setupExportButtons() {
         "Status": r.status
       }));
       const headers = ["Timestamp", "Severity", "Event Type", "Source", "IP", "Description", "Status"];
-      if (window.Exporter.pdf("Security Events", headers, data, "Security_Events.pdf")) {
+      if (window.Exporter && window.Exporter.pdf("Security Events", headers, data, "Security_Events.pdf")) {
         recordExportLog("Security Events", "PDF", data.length);
       }
     });
@@ -483,7 +512,7 @@ function setupExportButtons() {
         "Last Activity": r.last_activity
       }));
       const headers = ["AB Number", "Broker", "Logins", "Actions", "Downloads", "Top Tool", "Last Activity"];
-      if (window.Exporter.csv("Broker Summary", headers, data, "Broker_Summary.csv")) {
+      if (window.Exporter && window.Exporter.csv("Broker Summary", headers, data, "Broker_Summary.csv")) {
         recordExportLog("Broker Summary", "CSV", data.length);
       }
     });
@@ -500,7 +529,7 @@ function setupExportButtons() {
         "Last Activity": r.last_activity
       }));
       const headers = ["AB Number", "Broker", "Logins", "Actions", "Downloads", "Top Tool", "Last Activity"];
-      if (window.Exporter.pdf("Broker Summary", headers, data, "Broker_Summary.pdf")) {
+      if (window.Exporter && window.Exporter.pdf("Broker Summary", headers, data, "Broker_Summary.pdf")) {
         recordExportLog("Broker Summary", "PDF", data.length);
       }
     });
@@ -519,7 +548,7 @@ function setupExportButtons() {
         "Avg Actions / Session": r.avg
       }));
       const headers = ["Tool", "Unique Brokers", "Actions", "Sessions", "Avg Actions / Session"];
-      if (window.Exporter.csv("Tool Usage Analytics", headers, data, "Tool_Usage.csv")) {
+      if (window.Exporter && window.Exporter.csv("Tool Usage Analytics", headers, data, "Tool_Usage.csv")) {
         recordExportLog("Tool Usage", "CSV", data.length);
       }
     });
@@ -534,24 +563,28 @@ function setupExportButtons() {
         "Avg Actions / Session": r.avg
       }));
       const headers = ["Tool", "Unique Brokers", "Actions", "Sessions", "Avg Actions / Session"];
-      if (window.Exporter.pdf("Tool Usage Analytics", headers, data, "Tool_Usage.pdf")) {
+      if (window.Exporter && window.Exporter.pdf("Tool Usage Analytics", headers, data, "Tool_Usage.pdf")) {
         recordExportLog("Tool Usage", "PDF", data.length);
       }
     });
   }
 }
 
-function setupExportPage() {
+function setupExportPage(): void {
   // Quick Export
   const btnQuick = document.getElementById("quickExportBtn");
   if (btnQuick) {
     btnQuick.addEventListener("click", () => {
-      const viewVal = document.getElementById("quickExportView").value;
-      const formatVal = document.getElementById("quickExportFormat").value;
+      const viewSelect = document.getElementById("quickExportView") as HTMLSelectElement | null;
+      const formatSelect = document.getElementById("quickExportFormat") as HTMLSelectElement | null;
+      if (!viewSelect || !formatSelect) return;
+
+      const viewVal = viewSelect.value;
+      const formatVal = formatSelect.value;
 
       let title = viewVal;
-      let headers = [];
-      let data = [];
+      let headers: string[] = [];
+      let data: Record<string, any>[] = [];
 
       if (viewVal === "Activity Log") {
         headers = ["Timestamp", "AB Number", "Broker", "IP", "Tool", "Action", "Details", "Status"];
@@ -586,12 +619,14 @@ function setupExportPage() {
       }
 
       const fname = `${viewVal.toLowerCase().replace(/\s+/g, '_')}.${formatVal === 'PDF' ? 'pdf' : 'csv'}`;
-      if (formatVal === "PDF") {
-        window.Exporter.pdf(title, headers, data, fname);
-      } else if (formatVal === "Excel") {
-        window.Exporter.excel(title, headers, data, fname);
-      } else {
-        window.Exporter.csv(title, headers, data, fname);
+      if (window.Exporter) {
+        if (formatVal === "PDF") {
+          window.Exporter.pdf(title, headers, data, fname);
+        } else if (formatVal === "Excel") {
+          window.Exporter.excel(title, headers, data, fname);
+        } else {
+          window.Exporter.csv(title, headers, data, fname);
+        }
       }
       recordExportLog(viewVal, formatVal, data.length);
     });
@@ -601,16 +636,24 @@ function setupExportPage() {
   const btnCustom = document.getElementById("customExportBtn");
   if (btnCustom) {
     btnCustom.addEventListener("click", () => {
-      const from = document.getElementById("customExportFrom").value;
-      const to = document.getElementById("customExportTo").value;
-      const formatVal = document.getElementById("customExportFormat").value;
+      const fromInput = document.getElementById("customExportFrom") as HTMLInputElement | null;
+      const toInput = document.getElementById("customExportTo") as HTMLInputElement | null;
+      const formatSelect = document.getElementById("customExportFormat") as HTMLSelectElement | null;
+      const chkLoginsInput = document.getElementById("chkLogins") as HTMLInputElement | null;
+      const chkActionsInput = document.getElementById("chkActions") as HTMLInputElement | null;
+      const chkDownloadsInput = document.getElementById("chkDownloads") as HTMLInputElement | null;
+      const chkSecurityInput = document.getElementById("chkSecurity") as HTMLInputElement | null;
 
-      const chkLogins = document.getElementById("chkLogins").checked;
-      const chkActions = document.getElementById("chkActions").checked;
-      const chkDownloads = document.getElementById("chkDownloads").checked;
-      const chkSecurity = document.getElementById("chkSecurity").checked;
+      const from = fromInput ? fromInput.value : "";
+      const to = toInput ? toInput.value : "";
+      const formatVal = formatSelect ? formatSelect.value : "CSV";
 
-      let aggregatedRows = [];
+      const chkLogins = chkLoginsInput ? chkLoginsInput.checked : false;
+      const chkActions = chkActionsInput ? chkActionsInput.checked : false;
+      const chkDownloads = chkDownloadsInput ? chkDownloadsInput.checked : false;
+      const chkSecurity = chkSecurityInput ? chkSecurityInput.checked : false;
+
+      let aggregatedRows: string[][] = [];
       const headers = ["Date/Time", "Category", "User/AB", "Tool/Event", "Details/Status"];
 
       if (chkLogins) {
@@ -649,17 +692,19 @@ function setupExportPage() {
       }
 
       if (!aggregatedRows.length) {
-        window.Exporter.toast("No records found for custom filter selection.", false);
+        if (window.Exporter) window.Exporter.toast("No records found for custom filter selection.", false);
         return;
       }
 
       const title = "Custom Audit Summary Report";
       const fname = `Custom_Audit_Report.${formatVal === 'PDF' ? 'pdf' : 'csv'}`;
 
-      if (formatVal === "PDF") {
-        window.Exporter.pdf(title, headers, aggregatedRows, fname);
-      } else {
-        window.Exporter.csv(title, headers, aggregatedRows, fname);
+      if (window.Exporter) {
+        if (formatVal === "PDF") {
+          window.Exporter.pdf(title, headers, aggregatedRows, fname);
+        } else {
+          window.Exporter.csv(title, headers, aggregatedRows, fname);
+        }
       }
       recordExportLog("Custom Audit Export", formatVal, aggregatedRows.length);
     });
@@ -670,15 +715,19 @@ function setupExportPage() {
   const saveSchedBtn = document.getElementById("saveSchedBtn");
   if (saveSchedBtn) {
     saveSchedBtn.addEventListener("click", () => {
-      const freq = document.getElementById("schedFreq").value;
-      const email = document.getElementById("schedEmail").value.trim();
+      const freqSelect = document.getElementById("schedFreq") as HTMLSelectElement | null;
+      const emailInput = document.getElementById("schedEmail") as HTMLInputElement | null;
+      if (!freqSelect || !emailInput) return;
+
+      const freq = freqSelect.value;
+      const email = emailInput.value.trim();
 
       if (!email || !email.includes("@")) {
-        window.Exporter.toast("Please enter a valid recipient email address.", false);
+        if (window.Exporter) window.Exporter.toast("Please enter a valid recipient email address.", false);
         return;
       }
 
-      const newSched = {
+      const newSched: ScheduleItem = {
         id: Date.now(),
         freq: freq,
         email: email,
@@ -689,14 +738,14 @@ function setupExportPage() {
       state.schedules.unshift(newSched);
       localStorage.setItem("audit_schedules", JSON.stringify(state.schedules));
       renderScheduledList();
-      window.Exporter.toast(`Schedule saved for ${email}! Previewing email dispatch...`);
+      if (window.Exporter) window.Exporter.toast(`Schedule saved for ${email}! Previewing email dispatch...`);
 
       openEmailPreview(newSched);
     });
   }
 }
 
-function renderScheduledList() {
+function renderScheduledList(): void {
   const container = document.getElementById("scheduledReportsList");
   if (!container) return;
 
@@ -719,39 +768,48 @@ function renderScheduledList() {
   `).join("");
 }
 
-window.triggerSchedEmail = function(idx) {
+function triggerSchedEmail(idx: number): void {
   const sched = state.schedules[idx];
   if (sched) openEmailPreview(sched);
-};
+}
 
-window.deleteSched = function(idx) {
+function deleteSched(idx: number): void {
   state.schedules.splice(idx, 1);
   localStorage.setItem("audit_schedules", JSON.stringify(state.schedules));
   renderScheduledList();
-  window.Exporter.toast("Schedule removed.");
-};
+  if (window.Exporter) window.Exporter.toast("Schedule removed.");
+}
 
-function openEmailPreview(sched) {
+window.triggerSchedEmail = triggerSchedEmail;
+window.deleteSched = deleteSched;
+
+function openEmailPreview(sched: ScheduleItem): void {
   const modal = document.getElementById("emailPreviewModal");
   if (!modal) return;
 
-  document.getElementById("emailTargetTo").textContent = sched.email;
-  document.getElementById("emailSubject").textContent = `[Audit Console] ${sched.freq} Compliance Audit Report`;
-  document.getElementById("emailFreqTag").textContent = sched.freq;
+  const emailTargetTo = document.getElementById("emailTargetTo");
+  const emailSubject  = document.getElementById("emailSubject");
+  const emailFreqTag  = document.getElementById("emailFreqTag");
+  const bodyEl        = document.getElementById("emailBodyContent");
 
-  const bodyEl = document.getElementById("emailBodyContent");
-  bodyEl.innerHTML = `
-    <p>Hello Compliance Officer,</p>
-    <p style="margin: 8px 0;">This is your scheduled <strong>${sched.freq} Audit Summary Report</strong> for Audit Log Console.</p>
-    <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px; border-radius:6px; margin:10px 0;">
-      <strong>📊 Summary Snapshot:</strong><br/>
-      • Total Actions Logged: 1,842<br/>
-      • Unique Active Brokers: 87<br/>
-      • Security Alerts: 2 Critical / 5 High<br/>
-      • Attached File: <code>Audit_Report_${sched.freq}_${new Date().toISOString().slice(0,10)}.pdf</code>
-    </div>
-    <p style="font-size:11.5px; color:#64748b;">This email is sent automatically to <strong>${sched.email}</strong> per your schedule configuration.</p>
-  `;
+  if (emailTargetTo) emailTargetTo.textContent = sched.email;
+  if (emailSubject)  emailSubject.textContent = `[Audit Console] ${sched.freq} Compliance Audit Report`;
+  if (emailFreqTag)  emailFreqTag.textContent = sched.freq;
+
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <p>Hello Compliance Officer,</p>
+      <p style="margin: 8px 0;">This is your scheduled <strong>${sched.freq} Audit Summary Report</strong> for Audit Log Console.</p>
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px; border-radius:6px; margin:10px 0;">
+        <strong>📊 Summary Snapshot:</strong><br/>
+        • Total Actions Logged: 1,842<br/>
+        • Unique Active Brokers: 87<br/>
+        • Security Alerts: 2 Critical / 5 High<br/>
+        • Attached File: <code>Audit_Report_${sched.freq}_${new Date().toISOString().slice(0,10)}.pdf</code>
+      </div>
+      <p style="font-size:11.5px; color:#64748b;">This email is sent automatically to <strong>${sched.email}</strong> per your schedule configuration.</p>
+    `;
+  }
 
   modal.classList.add("active");
 
@@ -768,53 +826,59 @@ function openEmailPreview(sched) {
       sched.lastSent = new Date().toLocaleString();
       localStorage.setItem("audit_schedules", JSON.stringify(state.schedules));
       renderScheduledList();
-      window.Exporter.toast(`📧 Report successfully dispatched to ${sched.email}!`);
+      if (window.Exporter) window.Exporter.toast(`📧 Report successfully dispatched to ${sched.email}!`);
       closeModal();
     };
   }
 }
 
 /* ---------- Populate filter dropdowns ---------- */
-function populateFilters(){
-  const brokerSel = document.getElementById("fBroker");
-  Object.keys(state.brokers).forEach(ab => {
-    const opt = document.createElement("option");
-    opt.value = ab;
-    opt.textContent = `${ab} · ${state.brokers[ab].name}`;
-    brokerSel.appendChild(opt);
-  });
+function populateFilters(): void {
+  const brokerSel = document.getElementById("fBroker") as HTMLSelectElement | null;
+  if (brokerSel) {
+    Object.keys(state.brokers).forEach(ab => {
+      const opt = document.createElement("option");
+      opt.value = ab;
+      opt.textContent = `${ab} · ${state.brokers[ab].name}`;
+      brokerSel.appendChild(opt);
+    });
+  }
 
   const tools = [...new Set(state.activity.map(a => a.tool))];
-  const toolSel = document.getElementById("fTool");
-  tools.forEach(t => {
-    const opt = document.createElement("option");
-    opt.value = t;
-    opt.textContent = t;
-    toolSel.appendChild(opt);
-  });
+  const toolSel = document.getElementById("fTool") as HTMLSelectElement | null;
+  if (toolSel) {
+    tools.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = t;
+      toolSel.appendChild(opt);
+    });
+  }
 
   const actions = [...new Set(state.activity.map(a => a.action))];
-  const actSel = document.getElementById("fAction");
-  actions.forEach(a => {
-    const opt = document.createElement("option");
-    opt.value = a;
-    opt.textContent = a;
-    actSel.appendChild(opt);
-  });
+  const actSel = document.getElementById("fAction") as HTMLSelectElement | null;
+  if (actSel) {
+    actions.forEach(a => {
+      const opt = document.createElement("option");
+      opt.value = a;
+      opt.textContent = a;
+      actSel.appendChild(opt);
+    });
+  }
 }
 
 /* ---------- Navigation ---------- */
-function switchView(view){
-  document.querySelectorAll("aside a").forEach(a =>
+function switchView(view: string): void {
+  document.querySelectorAll<HTMLElement>("aside a").forEach(a =>
     a.classList.toggle("active", a.dataset.view === view));
-  document.querySelectorAll(".view").forEach(v =>
+  document.querySelectorAll<HTMLElement>(".view").forEach(v =>
     v.classList.remove("active"));
   const el = document.getElementById("view-" + view);
   if (el) el.classList.add("active");
 }
 
 /* ---------- Session / Logout & RBAC Protection ---------- */
-function checkSession(){
+function checkSession(): boolean {
   const role = localStorage.getItem("session_role");
   const ab = localStorage.getItem("session_ab");
 
@@ -830,14 +894,21 @@ function checkSession(){
   }
 
   const name = localStorage.getItem("session_name") || "System Administrator";
-  document.getElementById("userLabel").textContent = `👑 Admin: ${name} (${ab})`;
+  const userLabel = document.getElementById("userLabel");
+  if (userLabel) {
+    userLabel.textContent = `👑 Admin: ${name} (${ab})`;
+  }
   return true;
 }
 
-function setupLogout(){
-  document.getElementById("logoutBtn").addEventListener("click", () => {
+function setupLogout(): void {
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (!logoutBtn) return;
+
+  logoutBtn.addEventListener("click", () => {
     // Log the logout event
-    const logs = JSON.parse(localStorage.getItem("audit_login_logs") || "[]");
+    const logsStr = localStorage.getItem("audit_login_logs") || "[]";
+    const logs = JSON.parse(logsStr);
     logs.push({
       user_id: localStorage.getItem("session_ab"),
       user_name: localStorage.getItem("session_name"),
@@ -856,7 +927,7 @@ function setupLogout(){
 }
 
 /* ---------- Init ---------- */
-document.addEventListener("DOMContentLoaded", async () => {
+async function initDashboard(): Promise<void> {
   if (!checkSession()) return;
   await loadAllData();
   populateFilters();
@@ -878,9 +949,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (window.renderAllCharts) window.renderAllCharts(state);
   if (window.setupFilters) window.setupFilters(state, renderActivity);
 
-  document.querySelectorAll("aside a").forEach(a => {
-    a.addEventListener("click", () => switchView(a.dataset.view));
+  document.querySelectorAll<HTMLElement>("aside a").forEach(a => {
+    a.addEventListener("click", () => {
+      const view = a.dataset.view;
+      if (view) switchView(view);
+    });
   });
 
   setupLogout();
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initDashboard);
+} else {
+  initDashboard();
+}

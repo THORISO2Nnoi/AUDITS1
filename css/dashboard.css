@@ -237,13 +237,17 @@ tbody tr:hover { background: #f9fafb; }
 }
 
 .bar {
-  width: 100%;
+  width: 32px;
+  max-width: 80%;
   background: linear-gradient(180deg, #3b82f6, #1e3a8a);
-  border-radius: 4px 4px 0 0;
-  transition: opacity 0.2s;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s ease;
 }
 
-.bar:hover { opacity: 0.8; }
+.bar:hover {
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
 .bar-label { font-size: 11px; color: #6b7280; margin-top: 6px; }
 .bar-value { font-size: 11px; color: #1e3a8a; font-weight: 700; margin-bottom: 4px; }
 

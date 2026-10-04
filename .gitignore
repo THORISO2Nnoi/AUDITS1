@@ -1,0 +1,11 @@
+# Build outputs (compiled from TypeScript in src/)
+/js/*.js
+/js/*.js.map
+
+# Dependencies
+node_modules/
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/

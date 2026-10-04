@@ -3,16 +3,13 @@
    Enforces Admin-only access to Audit Logs, blocking Brokers.
    ========================================================= */
 
-const AB_REGEX = /^AB\d{5,7}$/i;
-const MAX_ATTEMPTS = 5;
-const LOCK_MINUTES = 15;
+const AB_REGEX: RegExp = /^AB\d{5,7}$/i;
 
-let brokers = {};
-let admins = {};
-const attempts = {};
+let brokers: BrokersMap = {};
+let admins: AdminsMap = {};
 
 /* ---------- Load master data ---------- */
-async function loadMasterData() {
+async function loadMasterData(): Promise<void> {
   try {
     const [brokerRes, adminRes] = await Promise.all([
       fetch("data/brokers.json").catch(() => null),
@@ -35,8 +32,9 @@ async function loadMasterData() {
 }
 
 /* ---------- Audit Log Writer ---------- */
-function writeAudit(entry) {
-  const logs = JSON.parse(localStorage.getItem("audit_login_logs") || "[]");
+function writeAudit(entry: AuditLogEntry): void {
+  const logsStr = localStorage.getItem("audit_login_logs") || "[]";
+  const logs: AuditLogEntry[] = JSON.parse(logsStr);
   logs.push({
     ...entry,
     timestamp: new Date().toISOString(),
@@ -47,51 +45,56 @@ function writeAudit(entry) {
 }
 
 /* ---------- UI Helpers ---------- */
-function showError(msg, success = false) {
+function showError(msg: string, success: boolean = false): void {
   const box = document.getElementById("errorBox");
+  if (!box) return;
   box.innerHTML = msg;
   box.classList.add("show");
   box.classList.toggle("success", success);
 }
 
-function hideError() {
-  document.getElementById("errorBox").classList.remove("show");
+function hideError(): void {
+  const box = document.getElementById("errorBox");
+  if (box) box.classList.remove("show");
 }
 
 /* ---------- Tab Management ---------- */
-function switchRoleTab(role) {
-  document.getElementById("activeRole").value = role;
+function switchRoleTab(role: string): void {
+  const activeRoleInput = document.getElementById("activeRole") as HTMLInputElement | null;
+  if (activeRoleInput) activeRoleInput.value = role;
 
-  const tabs = document.querySelectorAll(".role-tab");
+  const tabs = document.querySelectorAll<HTMLElement>(".role-tab");
   tabs.forEach(tab => {
     tab.classList.toggle("active", tab.dataset.role === role);
   });
 
   const idLabel = document.getElementById("idLabel");
-  const idInput = document.getElementById("userIdentifier");
+  const idInput = document.getElementById("userIdentifier") as HTMLInputElement | null;
   const idHint = document.getElementById("idHint");
 
   if (role === "admin") {
-    idLabel.textContent = "Admin ID / Email";
-    idInput.placeholder = "ADM001 or admin@company.com";
-    idHint.textContent = "Authorized Administrator ID (e.g. ADM001 or admin@company.com)";
+    if (idLabel) idLabel.textContent = "Admin ID / Email";
+    if (idInput) idInput.placeholder = "ADM001 or admin@company.com";
+    if (idHint) idHint.textContent = "Authorized Administrator ID (e.g. ADM001 or admin@company.com)";
   } else {
-    idLabel.textContent = "AB Number";
-    idInput.placeholder = "AB12345";
-    idHint.textContent = "Broker AB Number (Note: Brokers cannot view Audit Logs)";
+    if (idLabel) idLabel.textContent = "AB Number";
+    if (idInput) idInput.placeholder = "AB12345";
+    if (idHint) idHint.textContent = "Broker AB Number (Note: Brokers cannot view Audit Logs)";
   }
 }
 
 /* ---------- Quick Demo Fill ---------- */
-function setupQuickFill() {
+function setupQuickFill(): void {
   const adminBtn = document.getElementById("demoAdminBtn");
   const brokerBtn = document.getElementById("demoBrokerBtn");
 
   if (adminBtn) {
     adminBtn.addEventListener("click", () => {
       switchRoleTab("admin");
-      document.getElementById("userIdentifier").value = "ADM001";
-      document.getElementById("password").value = "Admin@1234";
+      const idInput = document.getElementById("userIdentifier") as HTMLInputElement | null;
+      const pwdInput = document.getElementById("password") as HTMLInputElement | null;
+      if (idInput) idInput.value = "ADM001";
+      if (pwdInput) pwdInput.value = "Admin@1234";
       hideError();
     });
   }
@@ -99,23 +102,28 @@ function setupQuickFill() {
   if (brokerBtn) {
     brokerBtn.addEventListener("click", () => {
       switchRoleTab("broker");
-      document.getElementById("userIdentifier").value = "AB12345";
-      document.getElementById("password").value = "Test@1234";
+      const idInput = document.getElementById("userIdentifier") as HTMLInputElement | null;
+      const pwdInput = document.getElementById("password") as HTMLInputElement | null;
+      if (idInput) idInput.value = "AB12345";
+      if (pwdInput) pwdInput.value = "Test@1234";
       hideError();
     });
   }
 }
 
 /* ---------- Login Submit Handler ---------- */
-async function handleLogin(e) {
+async function handleLogin(e: Event): Promise<void> {
   e.preventDefault();
   hideError();
 
-  const idInput = document.getElementById("userIdentifier");
-  const pwdInput = document.getElementById("password");
-  const btn = document.getElementById("loginBtn");
-  const activeRole = document.getElementById("activeRole").value;
+  const idInput = document.getElementById("userIdentifier") as HTMLInputElement | null;
+  const pwdInput = document.getElementById("password") as HTMLInputElement | null;
+  const btn = document.getElementById("loginBtn") as HTMLButtonElement | null;
+  const activeRoleInput = document.getElementById("activeRole") as HTMLInputElement | null;
 
+  if (!idInput || !pwdInput || !btn || !activeRoleInput) return;
+
+  const activeRole = activeRoleInput.value;
   const rawId = idInput.value.trim();
   const pwd = pwdInput.value;
   const upperId = rawId.toUpperCase();
@@ -219,7 +227,8 @@ async function handleLogin(e) {
       details: "Admin authenticated for Audit Console"
     });
 
-    if (document.getElementById("remember").checked) {
+    const rememberCheck = document.getElementById("remember") as HTMLInputElement | null;
+    if (rememberCheck && rememberCheck.checked) {
       localStorage.setItem("remembered_admin", adminId);
     } else {
       localStorage.removeItem("remembered_admin");
@@ -243,9 +252,10 @@ async function handleLogin(e) {
 }
 
 /* ---------- Password show/hide ---------- */
-function setupPasswordToggle() {
-  const btn = document.getElementById("togglePwd");
-  const pwd = document.getElementById("password");
+function setupPasswordToggle(): void {
+  const btn = document.getElementById("togglePwd") as HTMLButtonElement | null;
+  const pwd = document.getElementById("password") as HTMLInputElement | null;
+  if (!btn || !pwd) return;
   btn.addEventListener("click", () => {
     const visible = pwd.type === "text";
     pwd.type = visible ? "password" : "text";
@@ -254,7 +264,7 @@ function setupPasswordToggle() {
 }
 
 /* ---------- Prefill & Query Param Check ---------- */
-function checkQueryParamsAndPrefill() {
+function checkQueryParamsAndPrefill(): void {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get("unauthorized") === "true" || urlParams.get("error") === "unauthorized") {
     showError("<strong>🚫 Unauthorized Access Attempt:</strong><br/>Your session does not have Administrator privileges. Please sign in as an Admin.");
@@ -263,22 +273,34 @@ function checkQueryParamsAndPrefill() {
   const savedAdmin = localStorage.getItem("remembered_admin");
   if (savedAdmin) {
     switchRoleTab("admin");
-    document.getElementById("userIdentifier").value = savedAdmin;
-    document.getElementById("remember").checked = true;
+    const idInput = document.getElementById("userIdentifier") as HTMLInputElement | null;
+    const rememberCheck = document.getElementById("remember") as HTMLInputElement | null;
+    if (idInput) idInput.value = savedAdmin;
+    if (rememberCheck) rememberCheck.checked = true;
   }
 }
 
 /* ---------- Init ---------- */
-document.addEventListener("DOMContentLoaded", async () => {
+async function initLogin(): Promise<void> {
   await loadMasterData();
   setupPasswordToggle();
   setupQuickFill();
   checkQueryParamsAndPrefill();
 
   // Tab click listeners
-  document.querySelectorAll(".role-tab").forEach(tab => {
-    tab.addEventListener("click", () => switchRoleTab(tab.dataset.role));
+  document.querySelectorAll<HTMLElement>(".role-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const role = tab.dataset.role;
+      if (role) switchRoleTab(role);
+    });
   });
 
-  document.getElementById("loginForm").addEventListener("submit", handleLogin);
-});
+  const form = document.getElementById("loginForm");
+  if (form) form.addEventListener("submit", handleLogin);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initLogin);
+} else {
+  initLogin();
+}
