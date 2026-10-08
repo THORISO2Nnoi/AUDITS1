@@ -16,7 +16,7 @@ Audit Log & Compliance Administration Console with **Role-Based Access Control (
 - `dashboard.html` — Audit console (8 views for authorized Admins)
 - `css/` — Stylesheets (login styling, dashboard layout, charts)
 - `data/` — Sample JSON data (`admins.json`, `brokers.json`, `activity.json`, etc.)
-- `docs/` — Specifications & documentation (`AUTH.md`, `AUDIT-SCHEMA.md`)
+- `docs/` — Specifications & documentation (`AUTH.md`)
 - `tsconfig.json` — TypeScript compiler configuration
 - `package.json` — NPM project configuration & build scripts
 
